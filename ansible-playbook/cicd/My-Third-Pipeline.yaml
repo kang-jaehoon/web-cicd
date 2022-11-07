@@ -1,7 +1,7 @@
 pipeline {
     agent any
     tools { 
-      maven 'Maven3.8.5'
+      maven 'Maven3.8.6'
     }
     stages {
         stage('github clone') {
@@ -16,6 +16,20 @@ pipeline {
                     echo build start
                     mvn clean compile package -DskipTests=true
                 '''
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                deploy adapters: [tomcat9(credentialsId: 'user to deploy on tomcat VM', path: '', url: 'http://kjh3047-ct5.tmonc.net:8088')], contextPath: null, war: '**/*.war'
+            }
+        }
+        
+        stage('ssh publisher') {
+            steps {
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'docker-server', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: '''docker build --tag mytomcat9 -f Dockerfile .;
+docker run -d -p 8088:8080 --name mytomcat mytomcat9
+''', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '.', remoteDirectorySDF: false, removePrefix: 'target', sourceFiles: 'target/*.war')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
             }
         }
     }
